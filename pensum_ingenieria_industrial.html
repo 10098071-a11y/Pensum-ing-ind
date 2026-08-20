@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mapa de prerrequisitos — Ingeniería Industrial</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --panel:#ffffff; --ink:#1c1b19; --mut:#6b675f; --line:#dedad0;
+    --hum:#c98a3a; --hum-bg:#fbf0df; --hum-b:#e3b676;
+    --sci:#2f6f9e; --sci-bg:#e7f1f8; --sci-b:#8fbcdb;
+    --gen:#3f7a5c; --gen-bg:#e8f3ec; --gen-b:#8fc3a6;
+    --ini:#a63d2f; --ini-bg:#faeae7; --ini-b:#dd9a8c;
+    --elec:#6b675f; --elec-bg:#eeece6; --elec-b:#c7c3b8;
+    --sel:#1c1b19; --anc:#2f6f9e; --desc:#a63d2f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  #app{max-width:1400px;margin:0 auto;padding:28px 24px 48px;}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 18px;}
+  #panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-bottom:16px;min-height:64px;position:sticky;top:8px;z-index:5;}
+  #panel .placeholder{color:var(--mut);font-size:13px;}
+  #panel .code{font-size:11px;color:var(--mut);letter-spacing:.03em;}
+  #panel .name{font-size:16px;font-weight:600;margin:2px 0 10px;}
+  #panel .row{display:flex;gap:28px;flex-wrap:wrap;}
+  #panel .col h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 6px;font-weight:600;}
+  #panel .col ul{margin:0;padding:0;list-style:none;font-size:13px;}
+  #panel .col li{padding:2px 0;}
+  #panel .col li.empty{color:var(--mut);font-style:italic;}
+  #legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--mut);}
+  #legend span{display:inline-flex;align-items:center;gap:6px;}
+  #legend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  #board{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:4px;}
+  #content{position:relative;}
+  #columns{display:flex;flex-direction:column;gap:46px;padding:26px;position:relative;z-index:1;min-width:max-content;}
+  .level-row{display:flex;flex-direction:row;gap:16px;}
+  .card{border-radius:8px;padding:8px 9px;cursor:pointer;border:1px solid;transition:transform .1s ease, box-shadow .1s ease;position:relative;width:150px;flex:0 0 auto;}
+  .card:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .card .code{font-size:9.5px;color:inherit;opacity:.75;display:block;margin-bottom:2px;letter-spacing:.02em;}
+  .card .name{font-size:11.5px;font-weight:600;line-height:1.28;}
+  .card.dim{opacity:.28;}
+  .card.sel{outline:2px solid var(--sel);outline-offset:1px;}
+  .card.anc{outline:2px solid var(--anc);outline-offset:1px;}
+  .card.desc{outline:2px solid var(--desc);outline-offset:1px;}
+  .c-HUM{background:var(--hum-bg);border-color:var(--hum-b);color:#7a4d1c;}
+  .c-SCI{background:var(--sci-bg);border-color:var(--sci-b);color:#1f4c6b;}
+  .c-GEN{background:var(--gen-bg);border-color:var(--gen-b);color:#265238;}
+  .c-INI{background:var(--ini-bg);border-color:var(--ini-b);color:#7a2a1f;}
+  .c-ELEC{background:var(--elec-bg);border-color:var(--elec-b);color:#4a473f;}
+  #lines{position:absolute;top:0;left:0;pointer-events:none;z-index:0;}
+  .hint{font-size:12px;color:var(--mut);margin-top:10px;}
+  #stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .stat-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:120px;}
+  .stat-card .num{font-size:20px;font-weight:700;line-height:1.1;}
+  .stat-card .lbl{font-size:11px;color:var(--mut);margin-top:2px;}
+  .stat-card.apr .num{color:#3a7048;}
+  .stat-card.cur .num{color:#c98a2c;}
+  .stat-card.pen .num{color:#8a8578;}
+  #bar{height:8px;border-radius:5px;overflow:hidden;display:flex;width:100%;background:#efece4;margin-bottom:12px;}
+  #bar span{height:100%;display:block;}
+  #bar .seg-apr{background:#4a8f5c;}
+  #bar .seg-cur{background:#e3a13a;}
+  #statsRow{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+  #toolsRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  #toolsRow button{font-size:12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 10px;cursor:pointer;color:var(--ink);}
+  #toolsRow button:hover{background:#f1efe7;}
+  #pendList{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px;max-height:220px;overflow-y:auto;font-size:12.5px;}
+  #pendList.open{display:block;}
+  #pendList li{padding:2px 0;}
+  #pendList ul{margin:0;padding-left:16px;}
+  .status-dot{position:absolute;top:5px;right:5px;width:11px;height:11px;border-radius:50%;border:1.5px solid #b9b5a8;background:#fff;cursor:pointer;z-index:2;}
+  .status-dot:hover{transform:scale(1.15);}
+  .status-dot.cur{background:#e3a13a;border-color:#b87f24;}
+  .status-dot.apr{background:#4a8f5c;border-color:#396c40;}
+  .card{position:relative;}
+  .card.st-apr{opacity:.55;}
+  .card.st-cur{outline:2px solid #e3a13a;outline-offset:1px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Ingeniería Industrial — mapa de prerrequisitos</h1>
+  <p class="sub">Instituto Politécnico Loyola · pensum versión 2022. Haz clic en una materia para ver de qué depende y a cuáles abre paso.</p>
+
+  <div id="panel"><div class="placeholder">Selecciona una materia en el mapa para ver sus detalles.</div></div>
+
+  <div id="legend">
+    <span><i style="background:var(--hum-b)"></i>Humanidades / idioma</span>
+    <span><i style="background:var(--sci-b)"></i>Matemática, física, química</span>
+    <span><i style="background:var(--gen-b)"></i>Ingeniería general / apoyo</span>
+    <span><i style="background:var(--ini-b)"></i>Ingeniería industrial (núcleo)</span>
+    <span><i style="background:var(--elec-b)"></i>Electivas</span>
+  </div>
+
+  <div id="statsRow">
+    <div id="bar"><span class="seg-apr" id="segApr" style="width:0%"></span><span class="seg-cur" id="segCur" style="width:0%"></span></div>
+    <div id="stats">
+      <div class="stat-card apr"><div class="num" id="statAprPct">0%</div><div class="lbl">Aprobadas (<span id="statAprCount">0</span>/<span id="statTotal">0</span>)</div></div>
+      <div class="stat-card cur"><div class="num" id="statCurPct">0%</div><div class="lbl">Cursando (<span id="statCurCount">0</span>)</div></div>
+      <div class="stat-card pen"><div class="num" id="statPenPct">0%</div><div class="lbl">Pendientes (<span id="statPenCount">0</span>)</div></div>
+    </div>
+    <div id="toolsRow">
+      <button id="togglePend">Ver pendientes</button>
+      <button id="resetStatus">Reiniciar estado</button>
+      <span style="font-size:12px;color:var(--mut)">Haz clic en el punto de cada tarjeta para marcarla: gris = pendiente, ámbar = cursando, verde = aprobada.</span>
+    </div>
+    <div id="pendList"><ul id="pendUl"></ul></div>
+  </div>
+
+  <div id="board">
+    <div id="content">
+      <div id="columns"></div>
+      <svg id="lines"></svg>
+    </div>
+  </div>
+  <p class="hint">Bordes en <span style="color:var(--anc)">azul</span>: materias que abrieron paso a la seleccionada. En <span style="color:var(--desc)">rojo</span>: materias que ella misma abre.</p>
+</div>
+
+<script>
+const courses = [
+{id:"c1",code:"HUM-111",name:"Orientación Académica e Institucional",term:1,area:"HUM",pre:[]},
+{id:"c2",code:"HUM-113",name:"Lengua Española I",term:1,area:"HUM",pre:[]},
+{id:"c3",code:"MAT-111",name:"Matemáticas Generales",term:1,area:"SCI",pre:[]},
+{id:"c4",code:"ING-121",name:"Dibujo Técnico I",term:1,area:"GEN",pre:[]},
+{id:"c5",code:"QUM-1110",name:"Química General",term:1,area:"SCI",pre:[]},
+{id:"c6",code:"QUM-1111",name:"Lab. Química General",term:1,area:"SCI",pre:[]},
+{id:"c7",code:"HUM-118",name:"Ecología",term:1,area:"HUM",pre:[]},
+{id:"c8",code:"HUM-114",name:"Realidad Social Dom. y Latinoamericana",term:1,area:"HUM",pre:[]},
+
+{id:"c9",code:"HUM-116",name:"Humanidades I",term:2,area:"HUM",pre:["c1"]},
+{id:"c10",code:"HUM-117",name:"Lengua Española II",term:2,area:"HUM",pre:["c2"]},
+{id:"c11",code:"HUM-346",name:"Metodología de la Investigación",term:2,area:"HUM",pre:["c2"]},
+{id:"c12",code:"MAT-112",name:"Cálculo I",term:2,area:"SCI",pre:["c3"]},
+{id:"c13",code:"FIS-1110",name:"Física I",term:2,area:"SCI",pre:["c3"]},
+{id:"c14",code:"FIS-1111",name:"Lab. Física I",term:2,area:"SCI",pre:["c3"]},
+{id:"c15",code:"ING-122",name:"Dibujo Técnico II",term:2,area:"GEN",pre:["c4"]},
+
+{id:"c16",code:"HUM-211",name:"Redacción de Informes Técnicos",term:3,area:"HUM",pre:["c10"]},
+{id:"c17",code:"HUM-119",name:"Humanidades II",term:3,area:"HUM",pre:["c9"]},
+{id:"c18",code:"MAT-113",name:"Estadística I",term:3,area:"SCI",pre:["c3"]},
+{id:"c19",code:"MAT-114",name:"Cálculo II",term:3,area:"SCI",pre:["c12"]},
+{id:"c20",code:"FIS-1120",name:"Física II",term:3,area:"SCI",pre:["c13","c12"]},
+{id:"c21",code:"FIS-1121",name:"Lab. Física II",term:3,area:"SCI",pre:["c13","c12"]},
+{id:"c22",code:"ING-131",name:"Intro. a la Innovación y Emprendimiento",term:3,area:"GEN",pre:["c5"]},
+{id:"c23",code:"INI-122",name:"Técnicas de Manufacturas I",term:3,area:"INI",pre:[]},
+
+{id:"c24",code:"MAT-215",name:"Cálculo III",term:4,area:"SCI",pre:["c19"]},
+{id:"c25",code:"FIS-2130",name:"Física III",term:4,area:"SCI",pre:["c20"]},
+{id:"c26",code:"FIS-2131",name:"Lab. Física III",term:4,area:"SCI",pre:["c20"]},
+{id:"c27",code:"MAT-217",name:"Estadística II",term:4,area:"SCI",pre:["c18"]},
+{id:"c28",code:"INI-222",name:"Fundamentos de Ingeniería Industrial",term:4,area:"INI",pre:["c22"]},
+{id:"c29",code:"INI-226",name:"Mecánica Racional I",term:4,area:"INI",pre:["c20"]},
+{id:"c30",code:"INI-224",name:"Técnicas de Manufacturas II",term:4,area:"INI",pre:["c23"]},
+
+{id:"c31",code:"MAT-216",name:"Álgebra Lineal y Cálculo Vectorial",term:5,area:"SCI",pre:["c24"]},
+{id:"c32",code:"ING-443",name:"Estructura de Datos y Algoritmos",term:5,area:"GEN",pre:["c27"]},
+{id:"c33",code:"INI-228",name:"Mecánica de Fluidos",term:5,area:"INI",pre:["c20"]},
+{id:"c34",code:"INI-220",name:"Diseño de Sistemas de Producción I",term:5,area:"INI",pre:["c28"]},
+{id:"c35",code:"ING-2220",name:"Análisis de Circuitos",term:5,area:"GEN",pre:["c25"]},
+{id:"c36",code:"ING-2221",name:"Lab. Análisis de Circuitos",term:5,area:"GEN",pre:["c25"]},
+{id:"c37",code:"INI-241",name:"Informática Aplicada a la Ingeniería",term:5,area:"INI",pre:[]},
+
+{id:"c38",code:"INI-321",name:"Introducción a la Economía",term:6,area:"INI",pre:["c27"]},
+{id:"c39",code:"IRT-2290",name:"Programación I",term:6,area:"GEN",pre:["c32"]},
+{id:"c40",code:"IRT-2291",name:"Lab. Programación I",term:6,area:"GEN",pre:["c32"]},
+{id:"c41",code:"MAT-218",name:"Ecuaciones Diferenciales",term:6,area:"SCI",pre:["c31"]},
+{id:"c42",code:"INI-229",name:"Mecánica Racional II",term:6,area:"INI",pre:["c29"]},
+{id:"c43",code:"INI-225",name:"Diseño de Sistemas de Producción II",term:6,area:"INI",pre:["c34"]},
+{id:"c44",code:"INI-223",name:"Proyecto de Diseño",term:6,area:"INI",pre:["c29"]},
+
+{id:"c45",code:"ING-221",name:"Administración",term:7,area:"GEN",pre:["c28"]},
+{id:"c46",code:"INI-321",name:"Seguridad e Higiene Industrial",term:7,area:"INI",pre:[]},
+{id:"c47",code:"INI-341",name:"Gestión de la Calidad I",term:7,area:"INI",pre:["c43"]},
+{id:"c48",code:"INI-322",name:"Resistencia de Materiales",term:7,area:"INI",pre:["c42"]},
+{id:"c49",code:"INI-342",name:"Psicología Organizacional",term:7,area:"INI",pre:["c17"]},
+{id:"c50",code:"INI-323",name:"Investigación de Operaciones I",term:7,area:"INI",pre:["c31"]},
+
+{id:"c51",code:"INI-344",name:"Gestión de la Calidad II",term:8,area:"INI",pre:["c47"]},
+{id:"c52",code:"INI-345",name:"Contabilidad para Ingeniero",term:8,area:"INI",pre:["c37"]},
+{id:"c53",code:"INI-324",name:"Termodinámica",term:8,area:"INI",pre:["c25"]},
+{id:"c54",code:"INI-325",name:"Automatización Industrial I",term:8,area:"INI",pre:["c28"]},
+{id:"c55",code:"INI-326",name:"Ciencias de los Materiales",term:8,area:"INI",pre:["c5"]},
+{id:"c56",code:"INI-327",name:"Investigación de Operaciones II",term:8,area:"INI",pre:["c50"]},
+
+{id:"c57",code:"INI-423",name:"Análisis de Costos",term:9,area:"INI",pre:["c52"]},
+{id:"c58",code:"INI-328",name:"Automatización Industrial II",term:9,area:"INI",pre:["c54"]},
+{id:"c59",code:"INI-342",name:"Optimización Industrial",term:9,area:"INI",pre:["c56"]},
+{id:"c60",code:"INI-320",name:"Control de Producción e Inventario",term:9,area:"INI",pre:["c51"]},
+{id:"c61",code:"INI-347",name:"Gestión de Mantenimiento Industrial",term:9,area:"INI",pre:["c44"]},
+{id:"c62",code:"ING-541",name:"Pasantía",term:9,area:"GEN",pre:[],note:"Todas las materias hasta 8vo aprobadas"},
+
+{id:"c63",code:"INI-421",name:"Técnicas de Supervisión",term:10,area:"INI",pre:["c59"]},
+{id:"c64",code:"HUM-421",name:"Inglés Técnico I",term:10,area:"HUM",pre:[],note:"5 niveles de inglés"},
+{id:"c65",code:"INI-422",name:"Simulación de Procesos",term:10,area:"INI",pre:["c59"]},
+{id:"c66",code:"INI-424",name:"Diseño y Desarrollo de Productos",term:10,area:"INI",pre:["c53"]},
+{id:"c67",code:"ING-342",name:"Ingeniería Económica",term:10,area:"GEN",pre:["c38"]},
+
+{id:"c68",code:"—",name:"Electiva I",term:11,area:"ELEC",pre:[]},
+{id:"c69",code:"INI-425",name:"Formulación y Evaluación de Proyectos",term:11,area:"INI",pre:["c67"]},
+{id:"c70",code:"—",name:"Proyecto de Plantas Industriales",term:11,area:"INI",pre:["c65"]},
+{id:"c71",code:"—",name:"Electiva II",term:11,area:"ELEC",pre:[]},
+
+{id:"c72",code:"ING-442",name:"Ética",term:12,area:"GEN",pre:["c17"]},
+{id:"c73",code:"—",name:"Electiva III",term:12,area:"ELEC",pre:[]},
+{id:"c74",code:"INI-426",name:"Trabajo de Grado",term:12,area:"INI",pre:["c69"]},
+
+{id:"c75",code:"INI-521",name:"Tecnología de Clase Mundial",term:0,area:"ELEC",pre:[]},
+{id:"c76",code:"INI-522",name:"Gestión de Productividad",term:0,area:"ELEC",pre:[]},
+{id:"c77",code:"INI-523",name:"Planificación Estratégica",term:0,area:"ELEC",pre:[]},
+{id:"c78",code:"INI-524",name:"Innovación y Desarrollo Tecnológico",term:0,area:"ELEC",pre:[]},
+{id:"c79",code:"INI-525",name:"Agroindustrialización",term:0,area:"ELEC",pre:[]},
+{id:"c80",code:"INI-526",name:"Procesos de la Industria Textil",term:0,area:"ELEC",pre:[]},
+{id:"c81",code:"INI-529",name:"Manufactura de Dispositivos Médicos",term:0,area:"ELEC",pre:[]},
+{id:"c82",code:"INI-528",name:"Tecnología de Alimentos",term:0,area:"ELEC",pre:[]},
+{id:"c83",code:"INI-530",name:"Cadena de Suministros",term:0,area:"ELEC",pre:[]},
+{id:"c84",code:"INI-527",name:"Tópicos Especiales de Ing. Industrial",term:0,area:"ELEC",pre:[]},
+{id:"c85",code:"ING-548",name:"Formación Metodológica para la Docencia",term:0,area:"ELEC",pre:[]}
+];
+
+const byId = {};
+courses.forEach(c => byId[c.id] = c);
+const children = {};
+courses.forEach(c => children[c.id] = []);
+courses.forEach(c => c.pre.forEach(p => { if(children[p]) children[p].push(c.id); }));
+
+const levelCache = {};
+function levelOf(id){
+  if(levelCache[id] !== undefined) return levelCache[id];
+  const c = byId[id];
+  if(!c.pre.length){ levelCache[id] = 0; return 0; }
+  const lvl = 1 + Math.max(...c.pre.map(p => levelOf(p)));
+  levelCache[id] = lvl;
+  return lvl;
+}
+courses.forEach(c => levelOf(c.id));
+const maxLevel = Math.max(...courses.map(c => levelCache[c.id]));
+
+const columnsEl = document.getElementById("columns");
+for(let L = 0; L <= maxLevel; L++){
+  const row = document.createElement("div");
+  row.className = "level-row";
+  courses.filter(c => levelCache[c.id] === L).forEach(c => {
+    const card = document.createElement("div");
+    card.className = "card c-" + c.area;
+    card.dataset.id = c.id;
+    card.innerHTML = '<span class="code">' + c.code + '</span><span class="name">' + c.name + '</span>';
+    card.addEventListener("click", () => selectCourse(c.id));
+    const dot = document.createElement("span");
+    dot.className = "status-dot";
+    dot.title = "Marcar estado (pendiente / cursando / aprobada)";
+    dot.addEventListener("click", (e) => { e.stopPropagation(); cycleStatus(c.id); });
+    card.appendChild(dot);
+    row.appendChild(card);
+  });
+  columnsEl.appendChild(row);
+}
+
+const svg = document.getElementById("lines");
+const content = document.getElementById("content");
+
+function ancestors(id){
+  const seen = new Set(); const stack = [id];
+  while(stack.length){
+    const cur = stack.pop();
+    byId[cur].pre.forEach(p => { if(!seen.has(p)){ seen.add(p); stack.push(p); } });
+  }
+  return seen;
+}
+function descendants(id){
+  const seen = new Set(); const stack = [id];
+  while(stack.length){
+    const cur = stack.pop();
+    (children[cur]||[]).forEach(ch => { if(!seen.has(ch)){ seen.add(ch); stack.push(ch); } });
+  }
+  return seen;
+}
+
+function drawLines(highlightSet, selId){
+  const w = content.scrollWidth, h = content.scrollHeight;
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+  svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+  svg.innerHTML = "";
+  const contentRect = content.getBoundingClientRect();
+  function rectOf(id){
+    const el = columnsEl.querySelector('[data-id="'+id+'"]');
+    const r = el.getBoundingClientRect();
+    return { top: r.top - contentRect.top, bottom: r.bottom - contentRect.top,
+             cx: r.left - contentRect.left + r.width/2 };
+  }
+  courses.forEach(c => {
+    c.pre.forEach(p => {
+      const a = rectOf(p), b = rectOf(c.id);
+      let color = "#e7e3d8", width = 0.75, opacity = 0.55;
+      if(highlightSet){
+        if(p===selId){ color = "#e0a99f"; width = 1.4; opacity = 0.95; }
+        else if(c.id===selId){ color = "#a9c6dc"; width = 1.4; opacity = 0.95; }
+        else if(highlightSet.anc.has(p) && highlightSet.anc.has(c.id)){ color = "#a9c6dc"; width = 1.1; opacity = 0.8; }
+        else if(highlightSet.desc.has(p) && highlightSet.desc.has(c.id)){ color = "#e0a99f"; width = 1.1; opacity = 0.8; }
+        else { color = "#efece4"; width = 0.6; opacity = 0.22; }
+      }
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", a.cx); line.setAttribute("y1", a.bottom);
+      line.setAttribute("x2", b.cx); line.setAttribute("y2", b.top);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", width);
+      line.setAttribute("opacity", opacity);
+      svg.appendChild(line);
+    });
+  });
+}
+
+const status = {};
+const order = [undefined, "cur", "apr"];
+const STORAGE_KEY = "course-status";
+let storageOk = true;
+
+async function saveStatus(){
+  if(!storageOk || !window.storage) return;
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(status), false);
+  }catch(err){
+    storageOk = false;
+    console.error("No se pudo guardar el progreso", err);
+  }
+}
+
+async function loadStatus(){
+  if(!window.storage){ storageOk = false; return; }
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      const saved = JSON.parse(res.value);
+      Object.keys(saved).forEach(k => { status[k] = saved[k]; });
+    }
+  }catch(err){
+    storageOk = false;
+  }
+}
+
+function cycleStatus(id){
+  const cur = status[id];
+  const idx = order.indexOf(cur);
+  const next = order[(idx + 1) % order.length];
+  if(next){ status[id] = next; } else { delete status[id]; }
+  renderStatus();
+  updateStats();
+  saveStatus();
+}
+
+function renderStatus(){
+  document.querySelectorAll(".card").forEach(el => {
+    const id = el.dataset.id;
+    el.classList.remove("st-cur", "st-apr");
+    const dot = el.querySelector(".status-dot");
+    dot.classList.remove("cur", "apr");
+    const s = status[id];
+    if(s === "cur"){ el.classList.add("st-cur"); dot.classList.add("cur"); }
+    else if(s === "apr"){ el.classList.add("st-apr"); dot.classList.add("apr"); }
+  });
+}
+
+function updateStats(){
+  const total = courses.length;
+  let apr = 0, cur = 0;
+  courses.forEach(c => { if(status[c.id] === "apr") apr++; else if(status[c.id] === "cur") cur++; });
+  const pen = total - apr - cur;
+  const aprPct = Math.round(apr / total * 100);
+  const curPct = Math.round(cur / total * 100);
+  const penPct = 100 - aprPct - curPct;
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statAprCount").textContent = apr;
+  document.getElementById("statCurCount").textContent = cur;
+  document.getElementById("statPenCount").textContent = pen;
+  document.getElementById("statAprPct").textContent = aprPct + "%";
+  document.getElementById("statCurPct").textContent = curPct + "%";
+  document.getElementById("statPenPct").textContent = penPct + "%";
+  document.getElementById("segApr").style.width = aprPct + "%";
+  document.getElementById("segCur").style.width = curPct + "%";
+  const pendUl = document.getElementById("pendUl");
+  const pendientes = courses.filter(c => status[c.id] !== "apr");
+  pendUl.innerHTML = pendientes.length
+    ? pendientes.map(c => "<li>" + c.code + " — " + c.name + "</li>").join("")
+    : "<li>No te falta ninguna materia.</li>";
+}
+
+document.getElementById("togglePend").addEventListener("click", () => {
+  document.getElementById("pendList").classList.toggle("open");
+  const btn = document.getElementById("togglePend");
+  btn.textContent = document.getElementById("pendList").classList.contains("open") ? "Ocultar pendientes" : "Ver pendientes";
+});
+document.getElementById("resetStatus").addEventListener("click", () => {
+  Object.keys(status).forEach(k => delete status[k]);
+  renderStatus();
+  updateStats();
+  saveStatus();
+});
+
+const saveNote = document.createElement("span");
+saveNote.id = "saveNote";
+saveNote.style.cssText = "font-size:11px;color:var(--mut);";
+document.getElementById("toolsRow").appendChild(saveNote);
+
+(async () => {
+  await loadStatus();
+  renderStatus();
+  updateStats();
+  saveNote.textContent = window.storage ? "Tu progreso se guarda automáticamente." : "Este visor no admite guardado automático aquí; descarga el archivo y ábrelo en tu navegador para que se guarde.";
+})();
+
+let selected = null;
+
+function selectCourse(id){
+  if(selected === id){ selected = null; }
+  else { selected = id; }
+  document.querySelectorAll(".card").forEach(el => el.classList.remove("dim","sel","anc","desc"));
+  const panel = document.getElementById("panel");
+  if(!selected){
+    panel.innerHTML = '<div class="placeholder">Selecciona una materia en el mapa para ver sus detalles.</div>';
+    drawLines(null, null);
+    return;
+  }
+  const c = byId[selected];
+  const anc = ancestors(selected);
+  const desc = descendants(selected);
+  document.querySelectorAll(".card").forEach(el => {
+    const cid = el.dataset.id;
+    if(cid === selected) el.classList.add("sel");
+    else if(anc.has(cid)) el.classList.add("anc");
+    else if(desc.has(cid)) el.classList.add("desc");
+    else el.classList.add("dim");
+  });
+  const preList = c.pre.length ? c.pre.map(p => '<li>' + byId[p].code + ' — ' + byId[p].name + '</li>').join("") : '<li class="empty">Sin prerrequisito</li>';
+  const childIds = children[selected];
+  const openList = childIds.length ? childIds.map(k => '<li>' + byId[k].code + ' — ' + byId[k].name + '</li>').join("") : '<li class="empty">No abre paso a ninguna otra materia directamente</li>';
+  panel.innerHTML =
+    '<div class="code">' + c.code + (c.note ? ' · ' + c.note : '') + '</div>' +
+    '<div class="name">' + c.name + '</div>' +
+    '<div class="row">' +
+      '<div class="col"><h4>Requiere haber cursado</h4><ul>' + preList + '</ul></div>' +
+      '<div class="col"><h4>Abre paso directamente a</h4><ul>' + openList + '</ul></div>' +
+    '</div>';
+  drawLines({anc, desc}, selected);
+}
+
+window.addEventListener("load", () => drawLines(null, null));
+window.addEventListener("resize", () => drawLines(selected ? {anc: ancestors(selected), desc: descendants(selected)} : null, selected));
+</script>
+</body>
+</html>
